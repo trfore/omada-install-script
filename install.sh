@@ -13,20 +13,28 @@ CLUSTER_LINK_CMD=/usr/bin/omadacluster
 CLUSTER_DIR="${DATA_DIR}/cluster"
 BACKUP_DIR=${INSTALLDIR}/../omada_db_backup
 DB_FILE_NAME=omada.db.tar.gz
-INSTALL_PARAM=$1
+INSTALL_PARAM=0
 CONSULT_IMPORT_DB=1
 INIT_CLUSTER=0
 
 help() {
-  echo -e "Usage: bash $0 [argument]
-Script argument:
-  help                                 Show this screen.
-  init-cluster-mode                    After installing the controller, it does not start and prompts to start in cluster mode"
+  echo "
+  Usage: ${0##*/} [argument]
+  Examples:
+    ${0##*/} -y
+    ${0##*/} --yes --cluster
+
+  Arguments:
+    --yes, -y       Bypass input prompt and install at default location.
+    --help, -h      Show this screen.
+    --cluster, -c   After installing the controller, it does not start and prompts to start in cluster mode.
+  "
+  exit 1
 }
 
 # user confirm
 user_confirm() {
-    if [ "$INSTALL_PARAM" == "-y" -o "$INSTALL_PARAM" == "-Y" ]; then
+    if [ $INSTALL_PARAM ]; then
         return 0
     fi
 
@@ -219,14 +227,38 @@ jsvc_check() {
 
 # parameter check
 if [[ $# != 0 ]] ; then
-    if [[ $# != 1 || $1 != "init-cluster-mode" || $1 == "help" ]] ; then
-        help
-        exit
-    fi
-    if [ $1 == "init-cluster-mode" ] ; then
-        INIT_CLUSTER=1
-        echo "Start controller distributed cluster mode."
-    fi
+  OPTIONS=hc:y
+  LONGOPTS=help,cluster,yes
+
+  TEMP=$(getopt -n "${0##*/}" -o $OPTIONS --long $LONGOPTS -- "${@}") || exit 2
+  eval set -- "$TEMP"
+  unset TEMP
+
+  while true; do
+    case "${1}" in
+    --help | -h)
+      help
+      ;;
+    --cluster | -c)
+      INIT_CLUSTER=1
+      echo "Start controller distributed cluster mode."
+      shift
+      continue
+      ;;
+    --yes | -y)
+      INSTALL_PARAM=1
+      shift
+      continue
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      echo "ERROR: Parsing arguments"
+      ;;
+    esac
+  done
 fi
 
 # root permission check
